@@ -117,6 +117,10 @@ import java.lang.annotation.Target;
     }
   }
 
+  // AMZN_CHANGE_BEGIN
+  public boolean maybePollTimestamp(long systemTimeUs) {
+    return maybePollTimestamp(systemTimeUs, false);
+  }
   /**
    * Polls the timestamp if required and returns whether it was updated. If {@code true}, the latest
    * timestamp is available via {@link #getTimestampSystemTimeUs()} and {@link
@@ -128,16 +132,19 @@ import java.lang.annotation.Target;
    * @return Whether the timestamp was updated.
    */
   @TargetApi(19) // audioTimestamp will be null if Util.SDK_INT < 19.
-  public boolean maybePollTimestamp(long systemTimeUs) {
-    if (audioTimestamp == null || (systemTimeUs - lastTimestampSampleTimeUs) < sampleIntervalUs) {
+  public boolean maybePollTimestamp(long systemTimeUs, boolean applyDolbyPassthroughQuirk) {
+    if (!applyDolbyPassthroughQuirk
+       && (audioTimestamp == null || (systemTimeUs - lastTimestampSampleTimeUs) < sampleIntervalUs)) {
       return false;
     }
+    // AMZN_CHANGE_END
     lastTimestampSampleTimeUs = systemTimeUs;
     boolean updatedTimestamp = audioTimestamp.maybeUpdateTimestamp();
     switch (state) {
       case STATE_INITIALIZING:
         if (updatedTimestamp) {
-          if (audioTimestamp.getTimestampSystemTimeUs() >= initializeSystemTimeUs) {
+          if ((audioTimestamp.getTimestampSystemTimeUs() >= initializeSystemTimeUs) 
+                    ||  applyDolbyPassthroughQuirk) {     // AMZN_CHANGE_ONELINE
             // We have an initial timestamp, but don't know if it's advancing yet.
             initialTimestampPositionFrames = audioTimestamp.getTimestampPositionFrames();
             updateState(STATE_TIMESTAMP);
