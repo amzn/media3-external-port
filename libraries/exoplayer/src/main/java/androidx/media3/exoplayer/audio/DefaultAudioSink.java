@@ -59,6 +59,7 @@ import androidx.media3.common.util.Assertions;
 import androidx.media3.common.util.Clock;
 import androidx.media3.common.util.ConditionVariable;
 import androidx.media3.common.util.Log;
+import androidx.media3.common.util.Logger;    // AMZN_CHANGE_ONELINE
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.common.util.Util;
 import androidx.media3.exoplayer.ExoPlayer.AudioOffloadListener;
@@ -557,6 +558,9 @@ public final class DefaultAudioSink implements AudioSink {
   private boolean offloadDisabledUntilNextConfiguration;
   private boolean isWaitingForOffloadEndOfStreamHandled;
   // AMZN_CHANGE_BEGIN
+  private final Logger log = new Logger(Logger.Module.Audio, TAG);
+  private final boolean DBG = log.allowDebug();
+  private final boolean VDBG = log.allowVerbose();
   private static final boolean isLatencyQuirkEnabled = AmazonQuirks.isLatencyQuirkEnabled();
   private static final boolean isLegacyPassthroughQuirkEnabled = AmazonQuirks.isDolbyPassthroughQuirkEnabled();
   // AMZN_CHANGE_END
@@ -591,7 +595,7 @@ public final class DefaultAudioSink implements AudioSink {
     toFloatPcmAvailableAudioProcessors = ImmutableList.of(new ToFloatPcmAudioProcessor());
     volume = 1f;
     // AMZN_CHANGE_BEGIN
-    Log.i(TAG , "Amazon quirks:"
+    log.i("Amazon quirks:"
             + " Latency:" + (isLatencyQuirkEnabled ? "on" : "off")
             + "; Dolby" + (isLegacyPassthroughQuirkEnabled ? "on" : "off")
             + ". On Sdk: " + Util.SDK_INT);
@@ -1009,6 +1013,11 @@ public final class DefaultAudioSink implements AudioSink {
       }
 
       // Check that presentationTimeUs is consistent with the expected value.
+      // AMZN_CHANGE_BEGIN
+      if (DBG) {
+        log.d("Setting StartMediaTimeUs = " + startMediaTimeUs);  
+      }
+      // AMZN_CHANGE_END
       long expectedPresentationTimeUs =
           startMediaTimeUs
               + configuration.inputFramesToDurationUs(
@@ -1175,6 +1184,12 @@ public final class DefaultAudioSink implements AudioSink {
    */
   @SuppressWarnings("ReferenceEquality")
   private void writeBuffer(ByteBuffer buffer, long avSyncPresentationTimeUs) throws WriteException {
+    // AMZN_CHANGE_BEGIN
+    if (DBG) {
+      log.d("writeBuffer : offset = " + buffer.position() + ", limit = " + buffer.limit() +
+              ", presentationTimeUs = " + avSyncPresentationTimeUs);
+    }
+    // AMZN_CHANGE_END
     if (!buffer.hasRemaining()) {
       return;
     }
@@ -1316,6 +1331,7 @@ public final class DefaultAudioSink implements AudioSink {
    */
   @Override
   public void playToEndOfStream() throws WriteException {
+    log.i("calling playToEndOfStream");   // AMZN_CHANGE_ONELINE
     if (!handledEndOfStream && isAudioTrackInitialized() && drainToEndOfStream()) {
       playPendingData();
       handledEndOfStream = true;
@@ -1404,6 +1420,7 @@ public final class DefaultAudioSink implements AudioSink {
 
   @Override
   public void setAudioSessionId(int audioSessionId) {
+    log.i("calling setAudioSessionId = " + audioSessionId);   // AMZN_CHANGE_ONELINE
     if (this.audioSessionId != audioSessionId) {
       this.audioSessionId = audioSessionId;
       externalAudioSessionIdProvided = audioSessionId != C.AUDIO_SESSION_ID_UNSET;
@@ -1444,6 +1461,7 @@ public final class DefaultAudioSink implements AudioSink {
 
   @Override
   public void enableTunnelingV21() {
+    log.i("calling enableTunnelingV21");  // AMZN_CHANGE_ONELINE
     Assertions.checkState(Util.SDK_INT >= 21);
     Assertions.checkState(externalAudioSessionIdProvided);
     if (!tunneling) {
@@ -1481,6 +1499,7 @@ public final class DefaultAudioSink implements AudioSink {
   @Override
   public void setVolume(float volume) {
     if (this.volume != volume) {
+      log.i("setVolume: volume = " + volume);   // AMZN_CHANGE_ONELINE
       this.volume = volume;
       setVolumeInternal();
     }
@@ -1498,6 +1517,7 @@ public final class DefaultAudioSink implements AudioSink {
 
   @Override
   public void pause() {
+    log.i("calling pause"); // AMZN_CHANGE_ONELINE
     playing = false;
     if (isAudioTrackInitialized()
         && (audioTrackPositionTracker.pause() || isOffloadedPlayback(audioTrack))) {
@@ -1507,6 +1527,7 @@ public final class DefaultAudioSink implements AudioSink {
 
   @Override
   public void flush() {
+    log.i("calling flush/reset");   // AMZN_CHANGE_ONELINE
     if (isAudioTrackInitialized()) {
       resetSinkStateForFlush();
 
@@ -1548,6 +1569,7 @@ public final class DefaultAudioSink implements AudioSink {
 
   @Override
   public void reset() {
+    log.i("calling reset");   // AMZN_CHANGE_ONELINE
     flush();
     for (AudioProcessor audioProcessor : toIntPcmAvailableAudioProcessors) {
       audioProcessor.reset();
@@ -1939,7 +1961,12 @@ public final class DefaultAudioSink implements AudioSink {
       releaseExecutor.execute(
           () -> {
             try {
+              // AMZN_CHANGE_BEGIN
+              Logger log = new Logger(Logger.Module.Audio, TAG);
+              log.i("audioTrack.flush");
               audioTrack.flush();
+              log.i("audioTrack.release");
+              // AMZN_CHANGE_END
               audioTrack.release();
             } finally {
               if (listener != null && audioTrackThreadHandler.getLooper().getThread().isAlive()) {
@@ -2099,7 +2126,7 @@ public final class DefaultAudioSink implements AudioSink {
       if (failOnSpuriousAudioTimestamp) {
         throw new InvalidAudioTrackTimestampException(message);
       }
-      Log.w(TAG, message);  
+      log.w(message);   // AMZN_CHANGE_ONELINE  
     }
 
     @Override
@@ -2124,12 +2151,12 @@ public final class DefaultAudioSink implements AudioSink {
       if (failOnSpuriousAudioTimestamp) {
         throw new InvalidAudioTrackTimestampException(message);
       }
-      Log.w(TAG, message);
+      log.w(message); // AMZN_CHANGE_ONELINE
     }
 
     @Override
     public void onInvalidLatency(long latencyUs) {
-      Log.w(TAG, "Ignoring impossibly large audio latency: " + latencyUs);  
+      log.w("Ignoring impossibly large audio latency: " + latencyUs);   // AMZN_CHANGE_ONELINE 
     }
 
     @Override

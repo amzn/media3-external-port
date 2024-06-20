@@ -38,6 +38,7 @@ import androidx.media3.common.PlaybackException;
 import androidx.media3.common.VideoSize;
 import androidx.media3.common.util.Assertions;
 import androidx.media3.common.util.Log;
+import androidx.media3.common.util.Logger;  // AMZN_CHANGE_ONELINE
 import androidx.media3.common.util.TimedValueQueue;
 import androidx.media3.common.util.TraceUtil;
 import androidx.media3.common.util.UnstableApi;
@@ -82,6 +83,7 @@ import java.lang.annotation.Target;
 public abstract class DecoderVideoRenderer extends BaseRenderer {
 
   private static final String TAG = "DecoderVideoRenderer";
+  private final Logger log = new Logger(Logger.Module.Video,  TAG);   // AMZN_CHANGE_ONELINE
 
   /** Decoder reinitialization states. */
   @Documented
@@ -223,7 +225,7 @@ public abstract class DecoderVideoRenderer extends BaseRenderer {
         while (feedInputBuffer()) {}
         TraceUtil.endSection();
       } catch (DecoderException e) {
-        Log.e(TAG, "Video codec error", e);
+        log.e("Video codec error", e);  // AMZN_CHANGE_ONELINE
         eventDispatcher.videoCodecError(e);
         throw createRendererException(e, inputFormat, PlaybackException.ERROR_CODE_DECODING_FAILED);
       }
@@ -729,7 +731,7 @@ public abstract class DecoderVideoRenderer extends BaseRenderer {
           decoderInitializedTimestamp - decoderInitializingTimestamp);
       decoderCounters.decoderInitCount++;
     } catch (DecoderException e) {
-      Log.e(TAG, "Video codec error", e);
+      log.e("Video codec error", e);  // AMZN_CHANGE_ONELINE
       eventDispatcher.videoCodecError(e);
       throw createRendererException(
           e, inputFormat, PlaybackException.ERROR_CODE_DECODER_INIT_FAILED);

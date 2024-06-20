@@ -54,6 +54,10 @@ import androidx.media3.common.PlaybackException;
 import androidx.media3.common.VideoSize;
 import androidx.media3.common.util.Clock;
 import androidx.media3.common.util.Log;
+// AMZN_CHANGE_BEGIN
+import androidx.media3.common.util.AmazonQuirks;
+import androidx.media3.common.util.Logger;    
+// AMZN_CHANGE_END
 import androidx.media3.common.util.MediaFormatUtil;
 import androidx.media3.common.util.Size;
 import androidx.media3.common.util.TraceUtil;
@@ -175,6 +179,8 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer
   /* package */ @Nullable OnFrameRenderedListenerV23 tunnelingOnFrameRenderedListener;
   @Nullable private VideoFrameMetadataListener frameMetadataListener;
   @Nullable private VideoSink videoSink;
+
+  private final Logger log = new Logger(Logger.Module.Video, TAG);  // AMZN_CHANGE_ONELINE
 
   /**
    * @param context A context.
@@ -897,6 +903,14 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer
       displaySurface = placeholderSurface;
     }
     maybeSetKeyAllowFrameDrop(mediaFormat);
+    // AMZN_CHANGE_BEGIN
+    log.setTAG(codecName + "-" + TAG);
+    log.i("configureCodec: codecName = " + codecInfo.name + 
+          ", deviceNeedsNoPostProcessWorkaround = " + deviceNeedsNoPostProcessWorkaround +
+          ", format = " + format + 
+          ", surface = " + displaySurface + 
+          ", crypto = " + crypto);
+    // AMZN_CHANGE_END
     return MediaCodecAdapter.Configuration.createForVideoDecoding(
         codecInfo,
         mediaFormat,
@@ -1139,7 +1153,7 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer
 
   @Override
   protected void onCodecError(Exception codecError) {
-    Log.e(TAG, "Video codec error", codecError);
+    log.e("Video codec error", codecError); // AMZN_CHANGE_ONELINE
     eventDispatcher.videoCodecError(codecError);
   }
 
@@ -1148,6 +1162,8 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer
   protected DecoderReuseEvaluation onInputFormatChanged(FormatHolder formatHolder)
       throws ExoPlaybackException {
     @Nullable DecoderReuseEvaluation evaluation = super.onInputFormatChanged(formatHolder);
+    Format newFormat = formatHolder.format;   // AMZN_CHANGE_ONELINE
+    log.i("onInputFormatChanged: format = " + newFormat); // AMZN_CHANGE_ONELINE
     eventDispatcher.inputFormatChanged(checkNotNull(formatHolder.format), evaluation);
     return evaluation;
   }
@@ -1194,6 +1210,8 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer
       // Must be applied each time the output format changes.
       codec.setVideoScalingMode(scalingMode);
     }
+    log.i("onOutputFormatChanged: outputFormat: " + mediaFormat
+              + ", codec: " + format.codecs);   // AMZN_CHANGE_ONELINE
     int width;
     int height;
     int unappliedRotationDegrees = 0;
@@ -1311,7 +1329,7 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer
 
     long outputStreamOffsetUs = getOutputStreamOffsetUs();
     long presentationTimeUs = bufferPresentationTimeUs - outputStreamOffsetUs;
-
+    
     @VideoFrameReleaseControl.FrameReleaseAction
     int frameReleaseAction =
         videoFrameReleaseControl.getFrameReleaseAction(
@@ -1321,6 +1339,17 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer
             getOutputStreamStartPositionUs(),
             isLastBuffer,
             videoFrameReleaseInfo);
+
+    // AMZN_CHANGE_BEGIN
+    if(log.allowDebug()) {
+      log.d("processOutputBuffer: positionUs = " + positionUs + 
+            ", elapsedRealtimeUs = " + elapsedRealtimeUs + 
+            ", bufferIndex = " + bufferIndex + 
+            ", isDecodeOnlyBuffer" + isDecodeOnlyBuffer + 
+            ", isLastBuffer = " + isLastBuffer + 
+            ", presentationTimeUs = " + bufferPresentationTimeUs);
+    }
+    // AMZN_CHANGE_END
 
     // Skip decode-only buffers, e.g. after seeking, immediately. This check must be performed after
     // getting the release action from the video frame release control although not necessary.
@@ -1524,6 +1553,7 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer
    * @param presentationTimeUs The presentation time of the output buffer, in microseconds.
    */
   protected void skipOutputBuffer(MediaCodecAdapter codec, int index, long presentationTimeUs) {
+    log.i("skipOutputBuffer: bufferIndex = " + index + ", PTS = " + presentationTimeUs);  // AMZN_CHANGE_ONELINE
     TraceUtil.beginSection("skipVideoBuffer");
     codec.releaseOutputBuffer(index, false);
     TraceUtil.endSection();
@@ -1538,6 +1568,7 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer
    * @param presentationTimeUs The presentation time of the output buffer, in microseconds.
    */
   protected void dropOutputBuffer(MediaCodecAdapter codec, int index, long presentationTimeUs) {
+    log.i("dropOutputBuffer: bufferIndex = " + index + ", PTS = " + presentationTimeUs);  // AMZN_CHANGE_ONELINE
     TraceUtil.beginSection("dropVideoBuffer");
     codec.releaseOutputBuffer(index, false);
     TraceUtil.endSection();
@@ -1639,6 +1670,11 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer
    * @param presentationTimeUs The presentation time of the output buffer, in microseconds.
    */
   protected void renderOutputBuffer(MediaCodecAdapter codec, int index, long presentationTimeUs) {
+    // AMZN_CHANGE_BEGIN
+    if(log.allowDebug()) {
+      log.d("renderOutputBuffer : " + index + ", PTS = " + presentationTimeUs);
+    }
+    // AMZN_CHANGE_END
     TraceUtil.beginSection("releaseOutputBuffer");
     codec.releaseOutputBuffer(index, true);
     TraceUtil.endSection();
@@ -1662,6 +1698,13 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer
   @RequiresApi(21)
   protected void renderOutputBufferV21(
       MediaCodecAdapter codec, int index, long presentationTimeUs, long releaseTimeNs) {
+    
+    // AMZN_CHANGE_BEGIN
+    if (log.allowDebug()) {
+      log.d("renderOutputBufferV21: bufferIndex = " + index + ", PTS = " + presentationTimeUs + 
+            ", releaseTimeNS = " + releaseTimeNs);
+    }
+    // AMZN_CHANGE_END
     TraceUtil.beginSection("releaseOutputBuffer");
     codec.releaseOutputBuffer(index, releaseTimeNs);
     TraceUtil.endSection();
