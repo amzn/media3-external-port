@@ -557,6 +557,7 @@ public final class DefaultAudioSink implements AudioSink {
   private boolean offloadDisabledUntilNextConfiguration;
   private boolean isWaitingForOffloadEndOfStreamHandled;
   // AMZN_CHANGE_BEGIN
+  private static final boolean isLatencyQuirkEnabled = AmazonQuirks.isLatencyQuirkEnabled();
   private static final boolean isLegacyPassthroughQuirkEnabled = AmazonQuirks.isDolbyPassthroughQuirkEnabled();
   // AMZN_CHANGE_END
   @Nullable private Looper playbackLooper;
@@ -580,7 +581,8 @@ public final class DefaultAudioSink implements AudioSink {
     audioOffloadSupportProvider = checkNotNull(builder.audioOffloadSupportProvider);
     releasingConditionVariable = new ConditionVariable(Clock.DEFAULT);
     releasingConditionVariable.open();
-    audioTrackPositionTracker = new AudioTrackPositionTracker(new PositionTrackerListener());
+    audioTrackPositionTracker = new AudioTrackPositionTracker(new PositionTrackerListener(),
+                                        isLatencyQuirkEnabled); // AMZN_CHANGE_ONELINE
     channelMappingAudioProcessor = new ChannelMappingAudioProcessor();
     trimmingAudioProcessor = new TrimmingAudioProcessor();
     toIntPcmAvailableAudioProcessors =
@@ -588,6 +590,12 @@ public final class DefaultAudioSink implements AudioSink {
             new ToInt16PcmAudioProcessor(), channelMappingAudioProcessor, trimmingAudioProcessor);
     toFloatPcmAvailableAudioProcessors = ImmutableList.of(new ToFloatPcmAudioProcessor());
     volume = 1f;
+    // AMZN_CHANGE_BEGIN
+    Log.i(TAG , "Amazon quirks:"
+            + " Latency:" + (isLatencyQuirkEnabled ? "on" : "off")
+            + "; Dolby" + (isLegacyPassthroughQuirkEnabled ? "on" : "off")
+            + ". On Sdk: " + Util.SDK_INT);
+    // AMZN_CHANGE_END
     audioSessionId = C.AUDIO_SESSION_ID_UNSET;
     auxEffectInfo = new AuxEffectInfo(AuxEffectInfo.NO_AUX_EFFECT_ID, 0f);
     mediaPositionParameters =
@@ -2091,7 +2099,7 @@ public final class DefaultAudioSink implements AudioSink {
       if (failOnSpuriousAudioTimestamp) {
         throw new InvalidAudioTrackTimestampException(message);
       }
-      Log.w(TAG, message);
+      Log.w(TAG, message);  
     }
 
     @Override
@@ -2121,7 +2129,7 @@ public final class DefaultAudioSink implements AudioSink {
 
     @Override
     public void onInvalidLatency(long latencyUs) {
-      Log.w(TAG, "Ignoring impossibly large audio latency: " + latencyUs);
+      Log.w(TAG, "Ignoring impossibly large audio latency: " + latencyUs);  
     }
 
     @Override
