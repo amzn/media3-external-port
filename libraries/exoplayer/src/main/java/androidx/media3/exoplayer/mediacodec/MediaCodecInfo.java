@@ -44,6 +44,7 @@ import androidx.annotation.VisibleForTesting;
 import androidx.media3.common.ColorInfo;
 import androidx.media3.common.Format;
 import androidx.media3.common.MimeTypes;
+import androidx.media3.common.util.AmazonQuirks;    // AMZN_CHANGE_ONELINE
 import androidx.media3.common.util.Assertions;
 import androidx.media3.common.util.Log;
 import androidx.media3.common.util.UnstableApi;
@@ -316,7 +317,8 @@ public final class MediaCodecInfo {
       }
     }
 
-    if (!isVideo && profile != CodecProfileLevel.AACObjectXHE) {
+    if (AmazonQuirks.shouldSkipProfileLevelCheck() ||     // AMZN_CHANGE_ONELINE
+          (!isVideo && profile != CodecProfileLevel.AACObjectXHE)) {
       // Some devices/builds underreport audio capabilities, so assume support except for xHE-AAC
       // which may not be widely supported. See https://github.com/google/ExoPlayer/issues/5145.
       return true;
