@@ -20,6 +20,7 @@ import static androidx.media3.common.util.Assertions.checkNotNull;
 import static java.lang.Math.max;
 
 import android.annotation.SuppressLint;
+import android.annotation.TargetApi;    // AMZN_CHANGE_ONELINE
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
@@ -67,7 +68,7 @@ public final class AudioCapabilities {
 
   /** Encodings supported when the device specifies external surround sound. */
   @SuppressLint("InlinedApi") // Compile-time access to integer constants defined in API 21.
-  private static final ImmutableList<Integer> EXTERNAL_SURROUND_SOUND_ENCODINGS =
+  public static final ImmutableList<Integer> EXTERNAL_SURROUND_SOUND_ENCODINGS =    // AMZN_CHANGE_ONELINE
       ImmutableList.of(
           AudioFormat.ENCODING_PCM_16BIT, AudioFormat.ENCODING_AC3, AudioFormat.ENCODING_E_AC3);
 
@@ -141,6 +142,27 @@ public final class AudioCapabilities {
       @Nullable Intent intent,
       AudioAttributes audioAttributes,
       @Nullable AudioDeviceInfoApi23 routedDevice) {
+    // AMZN_CHANGE_BEGIN
+    boolean useSurroundSoundFlag = false;
+    boolean isSurroundSoundEnabled = false;
+     
+    // read global surround sound amazon specific settings
+    if (Util.SDK_INT >= 17) {
+      ContentResolver resolver = context.getContentResolver();
+      useSurroundSoundFlag = useSurroundSoundFlagV17(resolver);
+      isSurroundSoundEnabled = isSurroundSoundEnabledV17(resolver);
+    }
+    // If use surround sound enabled flag is set, then ignore the hdmi plug 
+    // encodigs. Rely only on EXTERNAL_SURROUND_SOUND_CAPABILITIES to 
+    // determine if dolby is supported.
+    if(useSurroundSoundFlag) {
+      AudioCapabilities EXTERNAL_SURROUND_SOUND_CAPABILITIES  = new AudioCapabilities(
+        getAudioProfiles(Ints.toArray(EXTERNAL_SURROUND_SOUND_ENCODINGS), DEFAULT_MAX_CHANNEL_COUNT)
+      );
+      return isSurroundSoundEnabled ? EXTERNAL_SURROUND_SOUND_CAPABILITIES :
+                  DEFAULT_AUDIO_CAPABILITIES;
+    }
+    // AMZN_CHANGE_END
     AudioManager audioManager =
         (AudioManager) checkNotNull(context.getSystemService(Context.AUDIO_SERVICE));
     AudioDeviceInfoApi23 currentDevice =
@@ -216,6 +238,16 @@ public final class AudioCapabilities {
         : null;
   }
 
+  // AMZN_CHANGE_BEGIN
+  public static boolean useSurroundSoundFlagV17(ContentResolver resolver) {
+    return Global.getInt(resolver, FORCE_EXTERNAL_SURROUND_SOUND_KEY, 0) == 1;
+  }
+
+  @TargetApi(17)
+  public static boolean isSurroundSoundEnabledV17(ContentResolver resolver) {
+    return Global.getInt(resolver, EXTERNAL_SURROUND_SOUND_KEY, 0) == 1;
+  }
+  // AMZN_CHANGE_END
   private final SparseArray<AudioProfile> encodingToAudioProfile;
   private final int maxChannelCount;
 

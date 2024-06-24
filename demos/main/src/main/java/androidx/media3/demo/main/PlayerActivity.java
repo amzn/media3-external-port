@@ -19,7 +19,10 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;    // AMZN_CHANGE_ONELINE
+import android.os.Looper;   // AMZN_CHANGE_ONELINE
 import android.util.Pair;
+import android.util.Log;  // AMZN_CHANGE_ONELINE
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -40,10 +43,15 @@ import androidx.media3.common.TrackSelectionParameters;
 import androidx.media3.common.Tracks;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.common.util.Util;
+import androidx.media3.common.util.AmazonQuirks;
 import androidx.media3.datasource.DataSource;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.RenderersFactory;
 import androidx.media3.exoplayer.drm.DefaultDrmSessionManagerProvider;
+// AMZN_CHANGE_BEGIN
+import androidx.media3.exoplayer.audio.AudioCapabilities;
+import androidx.media3.exoplayer.audio.AudioCapabilitiesReceiver;
+// AMZN_CHANGE_END
 import androidx.media3.exoplayer.drm.FrameworkMediaDrm;
 import androidx.media3.exoplayer.ima.ImaAdsLoader;
 import androidx.media3.exoplayer.ima.ImaServerSideAdInsertionMediaSource;
@@ -63,8 +71,10 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
 /** An activity that plays media using {@link ExoPlayer}. */
 public class PlayerActivity extends AppCompatActivity
-    implements OnClickListener, PlayerView.ControllerVisibilityListener {
+    implements OnClickListener, PlayerView.ControllerVisibilityListener , AudioCapabilitiesReceiver.Listener{ // AMZN_CHANGE_ONELINE
 
+  // Activity extras.
+  public static final String TAG = PlayerActivity.class.getSimpleName();  // AMZN_CHANGE_ONELINE
   // Saved instance state keys.
 
   private static final String KEY_TRACK_SELECTION_PARAMETERS = "track_selection_parameters";
@@ -101,6 +111,8 @@ public class PlayerActivity extends AppCompatActivity
   private ImaServerSideAdInsertionMediaSource.AdsLoader.@MonotonicNonNull State
       serverSideAdsLoaderState;
 
+  private AudioCapabilitiesReceiver audioCapabilitiesReceiver;  // AMZN_CHANGE_ONELINE
+
   // Activity lifecycle.
 
   @Override
@@ -131,6 +143,10 @@ public class PlayerActivity extends AppCompatActivity
       trackSelectionParameters = new TrackSelectionParameters.Builder(/* context= */ this).build();
       clearStartPosition();
     }
+    // AMZN_CHANGE_BEGIN
+    audioCapabilitiesReceiver = new AudioCapabilitiesReceiver(this, this);
+    audioCapabilitiesReceiver.register();
+    // AMZN_CHANGE_END
   }
 
   @Override
@@ -245,6 +261,26 @@ public class PlayerActivity extends AppCompatActivity
     }
   }
 
+  // AMZN_CHANGE_BEGIN
+  // AudioCapabilitiesReceiver.Listener methods
+  @Override
+  public void onAudioCapabilitiesChanged(AudioCapabilities audioCapabilities) {
+    if(player == null){
+      return ;
+    }
+    // boolean background = player.getBackgrounded();
+    Log.d(TAG,  "onAudioCapabilitiesChanged(), rebuild pipeline. Caps = " +  audioCapabilities);
+
+    releasePlayer();
+    Handler handler = new Handler(Looper.getMainLooper());
+    handler.post(new Runnable() {
+      @Override
+      public void run() {
+        initializePlayer();
+      }
+    });
+  }
+  // AMZN_CHANGE_END
   // PlayerView.ControllerVisibilityListener implementation
 
   @Override

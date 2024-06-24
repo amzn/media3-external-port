@@ -60,6 +60,9 @@ public final class AudioCapabilitiesReceiver {
   @Nullable private final BroadcastReceiver hdmiAudioPlugBroadcastReceiver;
   @Nullable private final ExternalSurroundSoundSettingObserver externalSurroundSoundSettingObserver;
 
+  // AMZN_CHANGE_BEGIN
+  private final ContentResolver resolver;
+  // AMZN_CHANGE_END
   @Nullable private AudioCapabilities audioCapabilities;
   @Nullable private AudioDeviceInfoApi23 routedDevice;
   private AudioAttributes audioAttributes;
@@ -105,14 +108,26 @@ public final class AudioCapabilitiesReceiver {
     this.routedDevice = routedDevice;
     handler = Util.createHandlerForCurrentOrMainLooper();
     audioDeviceCallback = Util.SDK_INT >= 23 ? new AudioDeviceCallbackV23() : null;
-    hdmiAudioPlugBroadcastReceiver =
-        Util.SDK_INT >= 21 ? new HdmiAudioPlugBroadcastReceiver() : null;
     Uri externalSurroundSoundUri = AudioCapabilities.getExternalSurroundSoundGlobalSettingUri();
     externalSurroundSoundSettingObserver =
         externalSurroundSoundUri != null
             ? new ExternalSurroundSoundSettingObserver(
                 handler, context.getContentResolver(), externalSurroundSoundUri)
             : null;
+    // AMZN_CHANGE_BEGIN
+    boolean useSurroundSoundFlag = false;
+    if(Util.SDK_INT >= 17) {
+      this.resolver = context.getContentResolver();
+      useSurroundSoundFlag =  AudioCapabilities.useSurroundSoundFlagV17(resolver);
+    } else {
+      this.resolver= null;
+    }
+    // Don't listen for audio plug encodings if useSurroundSoundFlag is set.
+    // If useSurroundSoundFlag is set then the platform controls what the 
+    // audio output is by using the isSurroundSoundEnabled setting.
+    this.hdmiAudioPlugBroadcastReceiver = (Util.SDK_INT >= 21 && !useSurroundSoundFlag) ?
+              new HdmiAudioPlugBroadcastReceiver(): null;
+    // AMZN_CHANGE_END
   }
 
   /**
@@ -240,6 +255,7 @@ public final class AudioCapabilitiesReceiver {
 
     @Override
     public void onChange(boolean selfChange) {
+      super.onChange(selfChange);   // AMZN_CHANGE_ONELINE
       onNewAudioCapabilities(
           AudioCapabilities.getCapabilitiesInternal(context, audioAttributes, routedDevice));
     }
