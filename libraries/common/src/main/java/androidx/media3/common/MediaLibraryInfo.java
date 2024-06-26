@@ -31,9 +31,9 @@ public final class MediaLibraryInfo {
   // Intentionally hardcoded. Do not derive from other constants (e.g. VERSION_INT) or vice versa.
   public static final String VERSION = "1.3.1";
 
-  /** The version of the library expressed as {@code TAG + "/" + VERSION}. */
+  /** The version of the library expressed as {@code "AmznAndroidXMedia3/" + VERSION}. */
   // Intentionally hardcoded. Do not derive from other constants (e.g. VERSION) or vice versa.
-  public static final String VERSION_SLASHY = "AndroidXMedia3/1.3.1";
+  public static final String VERSION_SLASHY = "AmznAndroidXMedia3/1.3.1";   // AMZN_CHANGE_ONELINE
 
   /**
    * The version of the library expressed as an integer, for example 1002003300.
