@@ -53,6 +53,7 @@ import androidx.media3.common.util.Assertions;
 import androidx.media3.common.util.Clock;
 import androidx.media3.common.util.HandlerWrapper;
 import androidx.media3.common.util.Log;
+import androidx.media3.common.util.Logger;  // AMZN_CHANGE_ONELINE
 import androidx.media3.common.util.TraceUtil;
 import androidx.media3.common.util.Util;
 import androidx.media3.datasource.DataSourceException;
@@ -236,6 +237,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
   @Nullable private ExoPlaybackException pendingRecoverableRendererError;
   private long setForegroundModeTimeoutMs;
   private long playbackMaybeBecameStuckAtMs;
+  private final Logger log = new Logger(Logger.Module.Player, TAG);   // AMZN_CHANGE_ONELINE
 
   public ExoPlayerImplInternal(
       Renderer[] renderers,
@@ -756,6 +758,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
       if (state != Player.STATE_BUFFERING) {
         playbackMaybeBecameStuckAtMs = C.TIME_UNSET;
       }
+      // AMZN_CHANGE_BEGIN
+      log.d("state: Current = " + getStateString(state) + ", Previous= " + 
+              getStateString(playbackInfo.playbackState));
+      // AMZN_CHANGE_END
       playbackInfo = playbackInfo.copyWithPlaybackState(state);
     }
   }
@@ -3241,6 +3247,23 @@ import java.util.concurrent.atomic.AtomicBoolean;
   private static boolean isRendererEnabled(Renderer renderer) {
     return renderer.getState() != STATE_DISABLED;
   }
+
+  // AMZN_CHANGE_BEGIN
+  private static String getStateString(int state) {
+    switch(state) {
+      case Player.STATE_BUFFERING:
+        return "BUFFERING";
+      case Player.STATE_ENDED:
+        return "ENDED";
+      case Player.STATE_IDLE:
+        return "IDLE";
+      case Player.STATE_READY:
+        return "READY";
+      default: 
+        return "UNKNOWN";
+    }
+  }
+  // AMZN_CHANGE_END
 
   private static final class SeekPosition {
 
